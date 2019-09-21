@@ -102,7 +102,7 @@ class App extends Component {
     // stdlib.invalidation.then(() => simulation.stop());
   };
   componentDidMount() {
-    createChart(this.svg);
+    this.createChart(this.svg);
   }
 
   render() {
