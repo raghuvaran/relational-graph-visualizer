@@ -44,6 +44,10 @@ export class SQLGraph {
     );
   }
 
+  /**
+   * Given
+   * @param tableName tableName
+   */
   private async getPrimaryAndForeignConstraintsMapping(
     tableName: string
   ): Promise<TableConstraintMapping> {
