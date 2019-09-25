@@ -1,23 +1,38 @@
+export interface SQLProp {
+  type: string;
+  prop: string;
+}
+
 /**
  * SQL Graph Node
- * Authored By Nick Hwang
+ * @author Nick Hwang
+ * @description Graph Node that is used for SQL graph
  */
 export class SQLGraphNode {
   /**
    * Create a SQLGraphNode
    * @param key table name
    * @param props list of column names
+   * @param primaryKey list of primary key
+   * @param foreignKeyMap map of table: foreign key mapping.
    */
-  constructor(key: string, props: string[]) {
-    this.key = key;
-    this.props = props;
-  }
-  private props: string[];
-  private key: string;
-  getProps(): string[] {
+  constructor(
+    private readonly tableName: string,
+    private readonly props: SQLProp[],
+    private readonly primaryKey: string[],
+    private readonly foreignKeyMap: Map<string, string[]>
+  ) {}
+
+  getProps(): SQLProp[] {
     return this.props;
   }
-  getKey(): string {
-    return this.key;
+  getTableName(): string {
+    return this.tableName;
+  }
+  getPrimaryKey(): string[] {
+    return this.primaryKey;
+  }
+  getPropsForForeignKeyTable(tableName: string): string[] {
+    return this.foreignKeyMap.get(tableName);
   }
 }
