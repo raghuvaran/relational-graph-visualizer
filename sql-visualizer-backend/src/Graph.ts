@@ -26,7 +26,7 @@ export class SQLGraph {
     const columnNames = await this.connection
       .query(`SELECT COLUMN_NAME, DATA_TYPE
     FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE TABLE_NAME = '${tableName}';`);
+    WHERE TABLE_NAME = $1`, [tableName]);
     return columnNames.map((column) => ({
       name: column.column_name,
       type: column.data_type
