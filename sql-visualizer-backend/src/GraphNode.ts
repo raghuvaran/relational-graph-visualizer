@@ -11,7 +11,7 @@ export interface SQLProp {
 export class SQLGraphNode {
   /**
    * Create a SQLGraphNode
-   * @param key table name
+    * @param tableName table name
    * @param props list of column names
    * @param primaryKey list of primary key
    * @param foreignKeyMap map of table: foreign key mapping.
