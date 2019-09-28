@@ -1,34 +1,32 @@
-import React, { Component } from 'react';
+import React from 'react';
 import './App.css';
-import { DataSet, Network } from "vis-network";
+import Schema from './schema/schema';
+import AppBar from '@material-ui/core/AppBar';
+import Tabs from '@material-ui/core/Tabs';
+import Tab from '@material-ui/core/Tab';
+import Box from '@material-ui/core/Box';
 
-class App extends Component {
-
-  createChart(chart) {
-    const data = {
-      nodes: new DataSet([
-        { id: "Myriel", label: "Myriel" },
-        { id: "Napoleon", label: "Napoleon" }
-      ]),
-      edges: new DataSet([
-        { from: "Napoleon", to: "Myriel" }
-      ])
-    };
-    new Network(chart, data, {})
-  }
-
-  componentDidMount() {
-    console.log("chart", this.chart)
-    this.createChart(this.chart);
-  }
-
-  render() {
-    return (
-      <div className="App">
-        <div style={{ height: 700 }} ref={element => { this.chart = element }}></div>
-      </div>
-    );
-  }
+function TabPanel(props) {
+  return props.value === props.index ? <Box>{props.children}</Box> : null;
 }
 
-export default App;
+export default function App() {
+  const [value, setValue] = React.useState(0);
+
+  const handleChange = (event, newValue) => {
+    setValue(newValue);
+  };
+  return (
+    <div className="App">
+      <AppBar position="static">
+        <Tabs value={value} onChange={handleChange} aria-label="simple tabs example">
+          <Tab label="Schema" />
+          <Tab label="Data" />
+        </Tabs>
+      </AppBar>
+      <TabPanel value={value} index={0}>
+        <Schema />
+      </TabPanel>
+    </div>
+  );
+}
