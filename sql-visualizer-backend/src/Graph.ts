@@ -1,11 +1,16 @@
 import { Connection } from 'typeorm';
 import { SQLGraphNode, SQLProp } from './GraphNode';
+import { Queue } from './Queue';
 
 interface TableConstraintMapping {
   primary: string[];
   foreign: string[];
   tableName: string;
-  mapping: Map<string, string[]>;
+  mapping: Map<string, Map<string, string>>;
+}
+
+interface QueryParam {
+  [key: string]: string;
 }
 
 /**
@@ -23,10 +28,12 @@ export class SQLGraph {
   }
 
   private async getTableProps(tableName: string): Promise<SQLProp[]> {
-    const columnNames = await this.connection
-      .query(`SELECT COLUMN_NAME, DATA_TYPE
+    const columnNames = await this.connection.query(
+      `SELECT COLUMN_NAME, DATA_TYPE
     FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE TABLE_NAME = '${tableName}';`);
+    WHERE TABLE_NAME=$1;`,
+      [tableName]
+    );
     return columnNames.map((column) => ({
       name: column.column_name,
       type: column.data_type
@@ -63,7 +70,7 @@ export class SQLGraph {
       tableName: '',
       primary: [],
       foreign: [],
-      mapping: new Map<string, string[]>()
+      mapping: new Map<string, Map<string, string>>()
     };
     constraintsFilteredByForeignAndPrimary.forEach((constraint) => {
       // it will be sth like "foreign key (key) references object (key)";
@@ -84,7 +91,7 @@ export class SQLGraph {
           .map((s: string) => s.trimLeft());
         constraintMap.foreign.push(foreignTable);
         if (!constraintMap.mapping.has(foreignTable)) {
-          constraintMap.mapping.set(foreignTable, []);
+          constraintMap.mapping.set(foreignTable, new Map<string, string>());
         }
         constraintMap.mapping.get(foreignTable).push(...foreignKeys);
       } else {
@@ -110,7 +117,6 @@ export class SQLGraph {
         tableName
       );
       mapping.push(constraintMap);
-      await this.getTableProps(tableName);
       this.nodeMapper.set(
         tableName,
         new SQLGraphNode(
@@ -120,8 +126,10 @@ export class SQLGraph {
           constraintMap.mapping
         )
       );
+      console.log({ tableName, mapping: constraintMap.mapping });
     }
     this.buildGraph(mapping);
+    // console.log(this.graph);
   }
 
   buildVisJsTableGraph(): string {
@@ -166,4 +174,83 @@ export class SQLGraph {
     });
     this.connectEdges();
   }
+
+  /**
+   * traverse using bfs
+   * @param tableName tableName to Start
+   */
+  async traverse(tableName: string, queryParams: QueryParam[]) {
+    // tslint:disable-next-line:no-any
+    const queue = new Queue<{ tableName: string; obj: any }>();
+    const objs = await this.getRowsFromTableQuery(tableName, queryParams);
+    // tslint:disable-next-line:no-any
+    const visitedMapping = new Map<string, any>();
+    // For each node, we would like to make a graph relationship
+    objs.forEach((obj) => {
+      // bfs
+      queue.add({
+        tableName,
+        obj
+      });
+      visitedMapping.set(tableName, obj);
+      // while (!queue.isEmpty()) {
+      //   const size = queue.size();
+      //   for (let i = 0; i < size; i += 1) {
+      //     const node = queue.remove();
+      //     this.graph.get(node.tableName).forEach((neighbor: SQLGraphNode) => {
+      //       const queryRes = this.getRowsFromTableQuery(
+      //         neighbor.getTableName()
+      //       );
+      //       const key = this.buildUniqueKey(neighbor);
+      //     });
+      //   }
+      // }
+    });
+  }
+
+  /**
+   * Create a unique key given node and a object that is retrieved from query
+   * @param node SQLNode of that table
+   * @param obj object returned from query
+   */
+  // tslint:disable-next-line:no-any
+  private buildUniqueKey(node: SQLGraphNode, obj: any): string {
+    let key = `${node.getTableName()}`;
+    node.getPrimaryKey().forEach((pk: string) => {
+      key += `${obj[pk]},`;
+    });
+    return key;
+  }
+
+  /**
+   * Retrieve the rows that belong to given query
+   * @param tableName tableName
+   * @param queryParams
+   */
+  private async getRowsFromTableQuery(
+    tableName: string,
+    queryParams: { [key: string]: string }[]
+    // tslint:disable-next-line:no-any
+  ): Promise<any[]> {
+    const builder = this.connection
+      .createQueryBuilder()
+      .from(tableName, tableName);
+    queryParams.forEach((val) => {
+      // convert key: value pair to array [key, value]
+      const entry = Object.entries(val)[0];
+      // TODO we want some parameterized query on column name, but not supported by the driver
+      builder.andWhere(`${entry[0]}=:param`, { param: entry[1] });
+    });
+    const data = await builder.getRawMany();
+    return data;
+  }
+
+  // tslint:disable-next-line:no-any
+  // private buildQueryParamsForForeignKey(
+  //   node: SQLGraphNode,
+  //   parentObj: any
+  // ): QueryParam[] {
+  //   const params: QueryParam[] = [];
+  //   node.getPropsForForeignKeyTable();
+  // }
 }

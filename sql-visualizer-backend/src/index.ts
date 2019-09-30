@@ -7,7 +7,8 @@ createConnection()
     console.log('Here you can setup and run express/koa/any other framework.');
     const graph = new SQLGraph(connection);
     await graph.setup();
-    console.log(graph.buildVisJsTableGraph());
+    // console.log(graph.buildVisJsTableGraph());
+    await graph.traverse('subscriber', [{ name: 'Honeywell' }]);
     connection.close();
   })
   .catch((error) => console.log(error));

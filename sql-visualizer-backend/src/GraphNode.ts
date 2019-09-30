@@ -11,8 +11,8 @@ export interface SQLProp {
 export class SQLGraphNode {
   /**
    * Create a SQLGraphNode
-   * @param key table name
-   * @param props list of column names
+   * @param tableName table name
+   * @param props list of column names with their types
    * @param primaryKey list of primary key
    * @param foreignKeyMap map of table: foreign key mapping.
    */
@@ -20,7 +20,7 @@ export class SQLGraphNode {
     private readonly tableName: string,
     private readonly props: SQLProp[],
     private readonly primaryKey: string[],
-    private readonly foreignKeyMap: Map<string, string[]>
+    private readonly foreignKeyMap: Map<string, Map<string, string>>
   ) {}
 
   getProps(): SQLProp[] {
@@ -32,7 +32,8 @@ export class SQLGraphNode {
   getPrimaryKey(): string[] {
     return this.primaryKey;
   }
-  getPropsForForeignKeyTable(tableName: string): string[] {
-    return this.foreignKeyMap.get(tableName);
+  getPropsForForeignKeyTable(tableName: string): Map<string, string> {
+    const foreignKeys = this.foreignKeyMap.get(tableName);
+    return foreignKeys ? foreignKeys : undefined;
   }
 }
