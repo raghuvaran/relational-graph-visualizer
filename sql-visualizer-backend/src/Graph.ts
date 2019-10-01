@@ -89,11 +89,19 @@ export class SQLGraph {
         const foreignKeys = detailsParsedWithParen[1]
           .split(/[,\s]+/)
           .map((s: string) => s.trimLeft());
+        const keysOfOtherTable = detailsParsedWithParen[3]
+          .split(/[,\s]+/)
+          .map((s: string) => s.trimLeft());
         constraintMap.foreign.push(foreignTable);
         if (!constraintMap.mapping.has(foreignTable)) {
           constraintMap.mapping.set(foreignTable, new Map<string, string>());
         }
-        constraintMap.mapping.get(foreignTable).push(...foreignKeys);
+        // for each
+        for (let i = 0; i < keysOfOtherTable.length; i += 1) {
+          constraintMap.mapping
+            .get(foreignTable)
+            .set(keysOfOtherTable[i], foreignKeys[i]);
+        }
       } else {
         constraintMap.tableName = tableName;
         // PRIMARY KEY can contain ASC and DESC
@@ -126,10 +134,8 @@ export class SQLGraph {
           constraintMap.mapping
         )
       );
-      console.log({ tableName, mapping: constraintMap.mapping });
     }
     this.buildGraph(mapping);
-    // console.log(this.graph);
   }
 
   buildVisJsTableGraph(): string {
@@ -178,6 +184,7 @@ export class SQLGraph {
   /**
    * traverse using bfs
    * @param tableName tableName to Start
+   * @param queryParams Queries to query this table
    */
   async traverse(tableName: string, queryParams: QueryParam[]) {
     // tslint:disable-next-line:no-any
@@ -192,19 +199,41 @@ export class SQLGraph {
         tableName,
         obj
       });
-      visitedMapping.set(tableName, obj);
-      // while (!queue.isEmpty()) {
-      //   const size = queue.size();
-      //   for (let i = 0; i < size; i += 1) {
-      //     const node = queue.remove();
-      //     this.graph.get(node.tableName).forEach((neighbor: SQLGraphNode) => {
-      //       const queryRes = this.getRowsFromTableQuery(
-      //         neighbor.getTableName()
-      //       );
-      //       const key = this.buildUniqueKey(neighbor);
-      //     });
-      //   }
-      // }
+      visitedMapping.set(
+        this.buildUniqueKey(this.nodeMapper.get(tableName), obj),
+        obj
+      );
+      while (!queue.isEmpty()) {
+        const size = queue.size();
+        for (let i = 0; i < size; i += 1) {
+          const node = queue.remove();
+          this.graph
+            .get(node.tableName)
+            .forEach(async (neighbor: SQLGraphNode) => {
+              const neighObjs = await this.getRowsFromTableQuery(
+                neighbor.getTableName(),
+                this.buildQueryParamsForForeignKey(
+                  neighbor,
+                  node.obj,
+                  node.tableName
+                )
+              );
+              neighObjs.forEach((neighObj) => {
+                const neighborKey = this.buildUniqueKey(neighbor, neighObj);
+                if (visitedMapping.has(neighborKey)) {
+                  // do sth.
+                  // let us decide on the contract
+                } else {
+                  visitedMapping.set(neighborKey, neighObj);
+                  queue.add({
+                    tableName: neighbor.getTableName(),
+                    obj: neighObj
+                  });
+                }
+              });
+            });
+        }
+      }
     });
   }
 
@@ -215,7 +244,7 @@ export class SQLGraph {
    */
   // tslint:disable-next-line:no-any
   private buildUniqueKey(node: SQLGraphNode, obj: any): string {
-    let key = `${node.getTableName()}`;
+    let key = `${node.getTableName()}:`;
     node.getPrimaryKey().forEach((pk: string) => {
       key += `${obj[pk]},`;
     });
@@ -245,12 +274,17 @@ export class SQLGraph {
     return data;
   }
 
-  // tslint:disable-next-line:no-any
-  // private buildQueryParamsForForeignKey(
-  //   node: SQLGraphNode,
-  //   parentObj: any
-  // ): QueryParam[] {
-  //   const params: QueryParam[] = [];
-  //   node.getPropsForForeignKeyTable();
-  // }
+  private buildQueryParamsForForeignKey(
+    node: SQLGraphNode,
+    // tslint:disable-next-line:no-any
+    parentObj: any,
+    parentTableName: string
+  ): QueryParam[] {
+    const params: QueryParam[] = [];
+    const foreignMapping = node.getPropsForForeignKeyTable(parentTableName);
+    foreignMapping.forEach((pk, fk) => {
+      params.push({ [fk]: parentObj[pk] });
+    });
+    return params;
+  }
 }
