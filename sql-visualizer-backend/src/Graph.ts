@@ -189,53 +189,64 @@ export class SQLGraph {
    */
   async traverse(tableName: string, queryParams: QueryParam[]) {
     // tslint:disable-next-line:no-any
-    const queue = new Queue<{ tableName: string; obj: any }>();
+    const queue = new Queue<{ tableName: string; obj: any; key: string }>();
     const objs = await this.getRowsFromTableQuery(tableName, queryParams);
     // tslint:disable-next-line:no-any
     const visitedMapping = new Map<string, any>();
     // For each node, we would like to make a graph relationship
-    objs.forEach((obj) => {
+    const nodes = [];
+    const edges = [];
+    for (const obj of objs) {
       // bfs
+      const k = this.buildUniqueKey(this.nodeMapper.get(tableName), obj);
+      nodes.push(k);
       queue.add({
         tableName,
-        obj
+        obj,
+        key: k
       });
-      visitedMapping.set(
-        this.buildUniqueKey(this.nodeMapper.get(tableName), obj),
-        obj
-      );
+      visitedMapping.set(k, obj);
       while (!queue.isEmpty()) {
         const size = queue.size();
         for (let i = 0; i < size; i += 1) {
           const node = queue.remove();
-          this.graph
-            .get(node.tableName)
-            .forEach(async (neighbor: SQLGraphNode) => {
-              const neighObjs = await this.getRowsFromTableQuery(
-                neighbor.getTableName(),
-                this.buildQueryParamsForForeignKey(
-                  neighbor,
-                  node.obj,
-                  node.tableName
-                )
-              );
-              neighObjs.forEach((neighObj) => {
-                const neighborKey = this.buildUniqueKey(neighbor, neighObj);
-                if (visitedMapping.has(neighborKey)) {
-                  // do sth.
-                  // let us decide on the contract
-                } else {
-                  visitedMapping.set(neighborKey, neighObj);
-                  queue.add({
-                    tableName: neighbor.getTableName(),
-                    obj: neighObj
-                  });
-                }
-              });
-            });
+          for (const neighbor of this.graph.get(node.tableName)) {
+            const neighborTableName = neighbor.getTableName();
+            const tableNameWithoutQuote =
+              neighborTableName[0] === '"'
+                ? neighborTableName.substring(1, neighborTableName.length - 1)
+                : neighborTableName;
+            const params = this.buildQueryParamsForForeignKey(
+              neighbor,
+              node.obj,
+              node.tableName
+            );
+            const neighborObjs = await this.getRowsFromTableQuery(
+              tableNameWithoutQuote,
+              params
+            );
+            for (const neighObj of neighborObjs) {
+              const neighborKey = this.buildUniqueKey(neighbor, neighObj);
+              if (visitedMapping.has(neighborKey)) {
+                // do sth.
+                // let us decide on the contract
+                edges.push({ from: node.key, to: neighborKey });
+              } else {
+                visitedMapping.set(neighborKey, neighObj);
+                nodes.push(neighborKey);
+                edges.push({ from: node.key, to: neighborKey });
+                queue.add({
+                  tableName: neighbor.getTableName(),
+                  obj: neighObj,
+                  key: neighborKey
+                });
+              }
+            }
+          }
         }
       }
-    });
+    }
+    return JSON.stringify({ nodes, edges });
   }
 
   /**
@@ -257,19 +268,21 @@ export class SQLGraph {
    * @param tableName tableName
    * @param queryParams
    */
-  private async getRowsFromTableQuery(
+  public async getRowsFromTableQuery(
     tableName: string,
     queryParams: { [key: string]: string }[]
     // tslint:disable-next-line:no-any
   ): Promise<any[]> {
-    const builder = this.connection
+    let builder = this.connection
       .createQueryBuilder()
       .from(tableName, tableName);
     queryParams.forEach((val) => {
       // convert key: value pair to array [key, value]
       const entry = Object.entries(val)[0];
       // TODO we want some parameterized query on column name, but not supported by the driver
-      builder.andWhere(`${entry[0]}=:param`, { param: entry[1] });
+      builder = builder.andWhere(`"${tableName}".${entry[0]}=:param`, {
+        param: entry[1]
+      });
     });
     const data = await builder.getRawMany();
     return data;
@@ -283,9 +296,10 @@ export class SQLGraph {
   ): QueryParam[] {
     const params: QueryParam[] = [];
     const foreignMapping = node.getPropsForForeignKeyTable(parentTableName);
-    foreignMapping.forEach((pk, fk) => {
-      params.push({ [fk]: parentObj[pk] });
-    });
+    foreignMapping &&
+      foreignMapping.forEach((fk, pk) => {
+        params.push({ [fk]: parentObj[pk] });
+      });
     return params;
   }
 }

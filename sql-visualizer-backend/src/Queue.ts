@@ -18,7 +18,7 @@ export class Queue<T> {
   }
 
   add(element: T): void {
-    this.queue.unshift();
+    this.queue.unshift(element);
   }
 
   peek(): T {
