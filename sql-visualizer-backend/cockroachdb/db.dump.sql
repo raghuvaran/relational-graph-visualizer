@@ -28,5 +28,7 @@ CREATE TABLE IF NOT EXISTS user_rank (
     role_uuid UUID NOT NULL REFERENCES rank(uuid)
 );
 
-
+INSERT INTO "user"(last_name, first_name) VALUES ('nick', 'hwang'), ('raghu', 'chowda');
+INSERT INTO role(label) VALUES ('developer'), ('administrator');
+INSERT INTO rank(level) VALUES (5), (26);
 
