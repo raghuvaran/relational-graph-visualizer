@@ -4,10 +4,10 @@
    "description": "Awesome project developed with TypeORM.",
    "devDependencies": {
       "@types/node": "^8.0.29",
+      "eslint": "^6.5.1",
+      "eslint-config-google": "^0.14.0",
+      "eslint-config-prettier": "^6.3.0",
       "ts-node": "3.3.0",
-      "tslint": "^5.20.0",
-      "tslint-config-airbnb": "^5.11.1",
-      "tslint-config-prettier": "^1.18.0",
       "typescript": "3.3.3333"
    },
    "dependencies": {

@@ -273,6 +273,7 @@ export class SQLGraph {
     queryParams: { [key: string]: string }[]
     // tslint:disable-next-line:no-any
   ): Promise<any[]> {
+    if (queryParams.length === 0) return [];
     let builder = this.connection
       .createQueryBuilder()
       .from(tableName, tableName);
