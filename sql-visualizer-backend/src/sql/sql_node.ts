@@ -8,7 +8,7 @@ export interface SQLColumn {
  * @author Nick Hwang
  * @description Graph Node that is used for SQL graph
  */
-export class SQLNode {
+export class SQLNode<K=string> {
   private columns: SQLColumn[];
   private primaryKeys: string[];
 
@@ -19,7 +19,7 @@ export class SQLNode {
    * @param primaryKeys list of primary key
    */
   constructor(
-    private readonly tableName: string,
+    private readonly tableName: K,
     columns?: SQLColumn[],
     primaryKeys?: string[],
     foreignKeyMap?: Map<string, string[]>
@@ -28,11 +28,11 @@ export class SQLNode {
     this.primaryKeys = primaryKeys || [];
   }
 
-  public valueOf() {
+  public valueOf(): K {
     return this.tableName;
   }
 
-  public getTableName(): string {
+  public getTableName(): K {
     return this.tableName;
   }
 

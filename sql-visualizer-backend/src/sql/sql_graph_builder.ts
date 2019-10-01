@@ -9,7 +9,7 @@ import { SQLNode } from './sql_node';
  * This is hard-coded for postgres sql, but will see how flexible it will be with other database
  */
 export class SQLGraphBuilder {
-  private graph: SQLGraph<SQLNode, string[]> = new SQLGraph();
+  private graph: SQLGraph<string, SQLNode, string[]> = new SQLGraph();
 
   async build() {
     const tableNames = await this.getTableNames();
@@ -49,7 +49,6 @@ export class SQLGraphBuilder {
       .split(/[,\s]+/)
       .map((s: string) => s.trimLeft());
 
-    // constraintMap.foreign.push(foreignTable);
     const foreignNode = this.graph.findNode(foreignTable);
     this.graph.putEdge(node, foreignNode, foreignKeys);
   }
@@ -85,8 +84,8 @@ export class SQLGraphBuilder {
     const constraints = await getConnection().query(
       `show constraints from ${tableName}`
     );
-    constraints.filter(c => c.constraint_type.indexOf('FOREIGN') !== -1).map(c => this.handleFKConstraint(node, c));
-    constraints.filter(c => c.constraint_type.indexOf('PRIMARY') !== -1).map(c => this.handlePKConstraint(node, c));
+    constraints.filter(c => c.constraint_type.indexOf('FOREIGN') !== -1).forEach(c => this.handleFKConstraint(node, c));
+    constraints.filter(c => c.constraint_type.indexOf('PRIMARY') !== -1).forEach(c => this.handlePKConstraint(node, c));
   }
 
 }
