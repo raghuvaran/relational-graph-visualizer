@@ -34,6 +34,7 @@ export class SQLGraph {
     WHERE TABLE_NAME=$1;`,
       [tableName]
     );
+
     return columnNames.map((column) => ({
       name: column.column_name,
       type: column.data_type
